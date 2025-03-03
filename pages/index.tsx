@@ -5,10 +5,32 @@ import { PlusIcon } from '@heroicons/react/24/solid';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 
+interface EventFile {
+  id: string;
+  filename: string;
+  path: string;
+}
+
+interface EventType {
+  id: string;
+  title: string;
+  description: string;
+  startTime: Date;
+  endTime: Date;
+  location: string;
+  comments: Array<{
+    id: string;
+    content: string;
+    authorName: string;
+    createdAt: Date;
+  }>;
+  files: EventFile[];
+}
+
 console.log('Rendering Index Page'); // Logging for debugging
 
 export default function Home() {
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<EventType[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newEvent, setNewEvent] = useState({
     title: '',

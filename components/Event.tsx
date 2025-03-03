@@ -2,6 +2,19 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { CalendarIcon, MapPinIcon, ChatBubbleLeftIcon, PaperClipIcon } from '@heroicons/react/24/outline';
 
+interface Comment {
+  id: string;
+  content: string;
+  authorName: string;
+  createdAt: Date;
+}
+
+interface EventFile {
+  id: string;
+  filename: string;
+  path: string;
+}
+
 interface EventProps {
   id: string;
   title: string;
@@ -9,8 +22,8 @@ interface EventProps {
   startTime: Date;
   endTime: Date;
   location: string;
-  comments: any[];
-  files: any[];
+  comments: Comment[];
+  files: EventFile[];
 }
 
 export default function Event({
@@ -24,8 +37,8 @@ export default function Event({
   files: initialFiles,
 }: EventProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [comments, setComments] = useState(initialComments);
-  const [files, setFiles] = useState(initialFiles);
+  const [comments, setComments] = useState<Comment[]>(initialComments);
+  const [files, setFiles] = useState<EventFile[]>(initialFiles);
   const [newComment, setNewComment] = useState({ content: '', authorName: '' });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -155,7 +168,7 @@ export default function Event({
             </form>
 
             {/* Comments List */}
-            {comments.map((comment: any) => (
+            {comments.map((comment: Comment) => (
               <div key={comment.id} className="bg-gray-50 p-3 rounded-lg mb-2">
                 <p className="text-sm text-gray-800">{comment.content}</p>
                 <p className="text-xs text-gray-500 mt-1">
@@ -189,7 +202,7 @@ export default function Event({
             </form>
 
             {/* Files List */}
-            {files.map((file: any) => (
+            {files.map((file: EventFile) => (
               <div key={file.id} className="flex items-center space-x-2 text-sm text-gray-600">
                 <PaperClipIcon className="h-4 w-4" />
                 <a href={file.path} target="_blank" rel="noopener noreferrer" className="hover:underline">
