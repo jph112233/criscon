@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { CalendarIcon, MapPinIcon, ChatBubbleLeftIcon, PaperClipIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, MapPinIcon, ChatBubbleLeftIcon, PaperClipIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface Comment {
   id: string;
@@ -24,6 +24,7 @@ interface EventProps {
   location: string;
   comments: Comment[];
   files: EventFile[];
+  onDelete: (id: string) => void;
 }
 
 export default function Event({
@@ -35,14 +36,38 @@ export default function Event({
   location,
   comments: initialComments,
   files: initialFiles,
+  onDelete,
 }: EventProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [files, setFiles] = useState<EventFile[]>(initialFiles);
   const [newComment, setNewComment] = useState({ content: '', authorName: '' });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   console.log(`Rendering event: ${title}`); // Logging for debugging
+
+  const handleDelete = async () => {
+    if (!onDelete || isDeleting) return;
+    
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/events?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete event');
+      }
+
+      onDelete(id);
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      alert('Failed to delete event. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +94,7 @@ export default function Event({
       setComments([addedComment, ...comments]);
       setNewComment({ content: '', authorName: '' });
     } catch (error) {
-      console.error('Error adding comment:', error); // Logging for debugging
+      console.error('Error adding comment:', error);
       alert('Failed to add comment. Please try again.');
     }
   };
@@ -99,40 +124,64 @@ export default function Event({
       setFiles([uploadedFile, ...files]);
       setSelectedFile(null);
     } catch (error) {
-      console.error('Error uploading file:', error); // Logging for debugging
+      console.error('Error uploading file:', error);
       alert('Failed to upload file. Please try again.');
     }
   };
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 mb-6 hover:shadow-xl transition-shadow duration-300 border-l-4 border-green-500">
-      <div className="cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-        <h2 className="text-2xl font-bold text-green-800 mb-2">{title}</h2>
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex-1">
+          <div className="cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+            <h2 className="text-2xl font-bold text-green-800 mb-2">{title}</h2>
+            
+            <div className="flex items-center text-gray-600 mb-2">
+              <CalendarIcon className="h-5 w-5 mr-2" />
+              <span>{format(new Date(startTime), 'MMM dd, yyyy h:mm a')} - {format(new Date(endTime), 'h:mm a')}</span>
+            </div>
+
+            <div className="flex items-center text-gray-600 mb-4">
+              <MapPinIcon className="h-5 w-5 mr-2" />
+              <span>{location}</span>
+            </div>
+
+            <div className="flex space-x-4 text-sm text-gray-500">
+              <div className="flex items-center">
+                <ChatBubbleLeftIcon className="h-4 w-4 mr-1" />
+                <span>{comments.length} comments</span>
+              </div>
+              <div className="flex items-center">
+                <PaperClipIcon className="h-4 w-4 mr-1" />
+                <span>{files.length} attachments</span>
+              </div>
+            </div>
+          </div>
+        </div>
         
-        <div className="flex items-center text-gray-600 mb-2">
-          <CalendarIcon className="h-5 w-5 mr-2" />
-          <span>{format(new Date(startTime), 'MMM dd, yyyy h:mm a')} - {format(new Date(endTime), 'h:mm a')}</span>
-        </div>
-
-        <div className="flex items-center text-gray-600 mb-4">
-          <MapPinIcon className="h-5 w-5 mr-2" />
-          <span>{location}</span>
-        </div>
-
-        <div className="flex space-x-4 text-sm text-gray-500">
-          <div className="flex items-center">
-            <ChatBubbleLeftIcon className="h-4 w-4 mr-1" />
-            <span>{comments.length} comments</span>
-          </div>
-          <div className="flex items-center">
-            <PaperClipIcon className="h-4 w-4 mr-1" />
-            <span>{files.length} attachments</span>
-          </div>
+        <div className="flex space-x-2">
+          {isExpanded && (
+            <button
+              onClick={() => setIsExpanded(false)}
+              className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100"
+              title="Close"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          )}
+          <button
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className={`p-2 text-red-500 hover:text-red-700 rounded-full hover:bg-red-50 ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title="Delete event"
+          >
+            <TrashIcon className="h-5 w-5" />
+          </button>
         </div>
       </div>
 
       {isExpanded && (
-        <div className="mt-4">
+        <div className="mt-4 animate-fadeIn">
           <p className="text-gray-700 mb-4">{description}</p>
           
           {/* Comments Section */}
