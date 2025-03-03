@@ -5,19 +5,28 @@ import { PlusIcon } from '@heroicons/react/24/solid';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { CalendarDaysIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import Calendar, { CalendarEvent } from '../components/Calendar';
+import { format } from 'date-fns';
+import Layout from '../components/Layout';
+
+interface ConferenceSettings {
+  startDate: Date;
+  endDate: Date;
+}
 
 interface EventFile {
   id: string;
   filename: string;
   path: string;
+  createdAt: Date;
 }
 
 interface EventType {
   id: string;
   title: string;
   description: string;
-  startTime: Date;
-  endTime: Date;
+  startTime: string;
+  endTime: string;
   location: string;
   comments: Array<{
     id: string;
@@ -28,55 +37,112 @@ interface EventType {
   files: EventFile[];
 }
 
-console.log('Rendering Index Page'); // Logging for debugging
+console.log('Rendering Index Page');
 
 export default function Home() {
-  const [events, setEvents] = useState<EventType[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Conference dates
-  const CONFERENCE_START = new Date(2025, 6, 17); // July 17, 2025
-  const CONFERENCE_END = new Date(2025, 6, 22, 23, 59, 59); // July 22, 2025 23:59:59
+  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [conferenceSettings, setConferenceSettings] = useState<ConferenceSettings | null>(null);
 
   const getInitialStartDate = () => {
+    if (!conferenceSettings) return new Date();
     const today = new Date();
-    // If today is within conference dates, use today, otherwise use conference start
-    if (today >= CONFERENCE_START && today <= CONFERENCE_END) {
+    if (today >= conferenceSettings.startDate && today <= conferenceSettings.endDate) {
       return today;
     }
-    return CONFERENCE_START;
+    return conferenceSettings.startDate;
   };
 
   const [newEvent, setNewEvent] = useState({
     title: '',
     description: '',
-    startTime: getInitialStartDate(),
-    endTime: new Date(getInitialStartDate().getTime() + 60 * 60 * 1000), // 1 hour after start time
+    startTime: new Date(),
+    endTime: new Date(Date.now() + 60 * 60 * 1000),
     location: '',
   });
 
-  console.log('Initial event dates:', { start: newEvent.startTime, end: newEvent.endTime }); // Logging for debugging
+  const fetchConferenceSettings = async () => {
+    try {
+      console.log('Fetching conference settings');
+      const response = await fetch('/api/admin/settings');
+      if (!response.ok) {
+        throw new Error('Failed to fetch conference settings');
+      }
+      const data = await response.json();
+      console.log('Received conference settings:', data);
+      setConferenceSettings({
+        startDate: new Date(data.startDate),
+        endDate: new Date(data.endDate)
+      });
+      // Update newEvent times based on conference settings
+      setNewEvent(prev => ({
+        ...prev,
+        startTime: new Date(data.startDate),
+        endTime: new Date(new Date(data.startDate).getTime() + 60 * 60 * 1000)
+      }));
+    } catch (error) {
+      console.error('Error fetching conference settings:', error);
+      setError('Failed to load conference settings. Please try again later.');
+    }
+  };
 
-  // Fetch events on component mount
+  const convertToCalendarEvents = (apiEvents: EventType[]): CalendarEvent[] => {
+    return apiEvents.map(event => {
+      const startDate = new Date(event.startTime);
+      const endDate = new Date(event.endTime);
+      return {
+        id: event.id,
+        title: event.title,
+        time: `${format(startDate, 'h:mm a')} - ${format(endDate, 'h:mm a')}`,
+        location: event.location,
+        type: 'event' as const,
+        date: startDate,
+        description: event.description
+      };
+    });
+  };
+
   useEffect(() => {
-    fetchEvents();
+    const initializeData = async () => {
+      await fetchConferenceSettings();
+      await fetchEvents();
+    };
+    initializeData();
   }, []);
 
   const fetchEvents = async () => {
     try {
-      console.log('Fetching events...'); // Logging for debugging
       setIsLoading(true);
+      setError(null);
       const response = await fetch('/api/events');
-      const data = await response.json();
-      console.log('Fetched events:', data); // Logging for debugging
-      setEvents(data);
-    } catch (error) {
-      console.error('Error fetching events:', error); // Logging for debugging
-      alert('Failed to fetch events. Please refresh the page.');
+      if (!response.ok) {
+        throw new Error('Failed to fetch events');
+      }
+      const data: EventType[] = await response.json();
+      const calendarEvents = convertToCalendarEvents(data);
+      setEvents(calendarEvents);
+    } catch (err) {
+      console.error('Error fetching events:', err);
+      setError('Failed to load events. Please try again later.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleEventUpdate = (updatedEvent: CalendarEvent, index: number) => {
+    const updatedEvents = [...events];
+    // Update the corresponding event in the events array
+    updatedEvents[index] = {
+      ...updatedEvents[index],
+      title: updatedEvent.title,
+      location: updatedEvent.location || '',
+    };
+    setEvents(updatedEvents);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -108,7 +174,7 @@ export default function Home() {
         title: '',
         description: '',
         startTime: getInitialStartDate(),
-        endTime: new Date(getInitialStartDate().getTime() + 60 * 60 * 1000), // 1 hour after start time
+        endTime: new Date(getInitialStartDate().getTime() + 60 * 60 * 1000),
         location: '',
       });
     } catch (error) {
@@ -124,10 +190,10 @@ export default function Home() {
 
     if (field === 'startTime') {
       // Ensure date is within conference period
-      if (date < CONFERENCE_START) {
-        date = CONFERENCE_START;
-      } else if (date > CONFERENCE_END) {
-        date = CONFERENCE_END;
+      if (date < conferenceSettings.startDate) {
+        date = conferenceSettings.startDate;
+      } else if (date > conferenceSettings.endDate) {
+        date = conferenceSettings.endDate;
       }
 
       // Update end time to be 1 hour after start time if it's before the new start time
@@ -136,15 +202,15 @@ export default function Home() {
       setNewEvent({
         ...newEvent,
         startTime: date,
-        endTime: newEndTime > CONFERENCE_END ? CONFERENCE_END : newEndTime,
+        endTime: newEndTime > conferenceSettings.endDate ? conferenceSettings.endDate : newEndTime,
       });
     } else {
       // For end time, ensure it's after start time and within conference
       if (date <= newEvent.startTime) {
         date = new Date(newEvent.startTime.getTime() + 60 * 60 * 1000);
       }
-      if (date > CONFERENCE_END) {
-        date = CONFERENCE_END;
+      if (date > conferenceSettings.endDate) {
+        date = conferenceSettings.endDate;
       }
       
       setNewEvent({
@@ -155,158 +221,86 @@ export default function Home() {
   };
 
   const handleDeleteEvent = (deletedEventId: string) => {
-    setEvents(events.filter(event => event.id !== deletedEventId));
+    setEvents(prevEvents => prevEvents.filter(event => {
+      const eventWithId = event as CalendarEvent & { id: string };
+      return eventWithId.id !== deletedEventId;
+    }));
+  };
+
+  const handleUpdateEvent = (eventId: string, updatedEvent: EventType) => {
+    console.log('Updating event:', { eventId, updatedEvent });
+    const convertedEvent: CalendarEvent = {
+      title: updatedEvent.title,
+      time: `${format(new Date(updatedEvent.startTime), 'h:mm a')} - ${format(new Date(updatedEvent.endTime), 'h:mm a')}`,
+      location: updatedEvent.location,
+      type: 'event',
+      date: new Date(updatedEvent.startTime),
+      id: updatedEvent.id
+    };
+    
+    setEvents(prevEvents => prevEvents.map(event => {
+      const eventWithId = event as CalendarEvent & { id: string };
+      return eventWithId.id === eventId ? convertedEvent : event;
+    }));
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-blue-50">
+    <Layout>
       <Head>
         <title>CRIS Con 2025</title>
-        <meta name="description" content="CRIS Con 2025 Event Schedule" />
+        <meta name="description" content="CRIS Con 2025 - Conference Schedule" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-green-800 mb-2">CRIS Con 2025</h1>
-          <p className="text-xl text-gray-600">July 17-22, 2025</p>
-        </div>
-
-        <div className="mb-8">
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="bg-green-600 text-white px-6 py-3 rounded-lg flex items-center justify-center hover:bg-green-700 transition-colors duration-300"
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            Add New Event
-          </button>
-        </div>
-
-        {showAddForm && (
-          <div className="bg-white p-6 rounded-lg shadow-lg mb-8 animate-fadeIn">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-green-800">Add New Event</h2>
-              <button
-                onClick={() => setShowAddForm(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                Cancel
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-gray-700 mb-2">Title</label>
-                <input
-                  type="text"
-                  value={newEvent.title}
-                  onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-                  className="w-full p-2 border rounded-lg"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-700 mb-2">Description</label>
-                <textarea
-                  value={newEvent.description}
-                  onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
-                  className="w-full p-2 border rounded-lg"
-                  rows={4}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-700 mb-2">Start Time</label>
-                  <DatePicker
-                    selected={newEvent.startTime}
-                    onChange={(date) => handleDateChange(date, 'startTime')}
-                    showTimeSelect
-                    dateFormat="MMMM d, yyyy h:mm aa"
-                    className="w-full p-2 border rounded-lg"
-                    minDate={CONFERENCE_START}
-                    maxDate={CONFERENCE_END}
+      <div className="container mx-auto px-4">
+        <h1 className="text-3xl font-bold text-center text-green-800 mb-8">
+          CRIS Con 2025 Schedule
+        </h1>
+        {conferenceSettings ? (
+          (() => {
+            // This block only executes when conferenceSettings is not null
+            const settings = conferenceSettings;
+            return (
+              <>
+                <p className="text-center text-gray-600 mb-8">
+                  {format(settings.startDate, 'MMMM d')} - {format(settings.endDate, 'MMMM d, yyyy')}
+                </p>
+                {error ? (
+                  <div className="text-center py-4">
+                    <p className="text-red-600 mb-2">{error}</p>
+                    <button 
+                      onClick={() => {
+                        setError(null);
+                        fetchConferenceSettings();
+                        fetchEvents();
+                      }}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : isLoading ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Loading...</p>
+                  </div>
+                ) : (
+                  <Calendar 
+                    events={events} 
+                    conferenceStart={settings.startDate}
+                    conferenceEnd={settings.endDate}
                   />
-                  <p className="text-xs text-gray-500 mt-1">Must be between July 17-22, 2025</p>
-                </div>
-
-                <div>
-                  <label className="block text-gray-700 mb-2">End Time</label>
-                  <DatePicker
-                    selected={newEvent.endTime}
-                    onChange={(date) => handleDateChange(date, 'endTime')}
-                    showTimeSelect
-                    dateFormat="MMMM d, yyyy h:mm aa"
-                    className="w-full p-2 border rounded-lg"
-                    minDate={newEvent.startTime}
-                    maxDate={CONFERENCE_END}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Must be after start time and before July 22, 2025</p>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-gray-700 mb-2">Location</label>
-                <input
-                  type="text"
-                  value={newEvent.location}
-                  onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
-                  className="w-full p-2 border rounded-lg"
-                  required
-                />
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                >
-                  Save Event
-                </button>
-              </div>
-            </form>
+                )}
+              </>
+            );
+          })()
+        ) : !error && (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading conference settings...</p>
           </div>
         )}
-
-        <div className="space-y-6">
-          {isLoading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading events...</p>
-            </div>
-          ) : events.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-600">No events found. Add your first event!</p>
-            </div>
-          ) : (
-            events.map((event) => (
-              <Event key={event.id} {...event} onDelete={handleDeleteEvent} />
-            ))
-          )}
-        </div>
-      </main>
-
-      <footer className="bg-green-800 text-white py-8 mt-12">
-        <div className="container mx-auto px-4">
-          <div className="text-center">
-            <p className="mb-4">CRIS Con 2025 - Celebrating Costa Rican Innovation and Science</p>
-            <div className="text-sm text-green-100">
-              <p className="mb-2">Add events to your calendar:</p>
-              <div className="flex justify-center space-x-4">
-                <div className="flex items-center">
-                  <CalendarDaysIcon className="h-4 w-4 mr-1" />
-                  <span>Click the calendar icon next to any event to add to Google Calendar</span>
-                </div>
-                <div className="flex items-center">
-                  <CalendarIcon className="h-4 w-4 mr-1" />
-                  <span>Click the calendar icon next to any event to add to Apple Calendar</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
+      </div>
+    </Layout>
   );
 }

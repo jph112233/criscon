@@ -6,41 +6,71 @@
 
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  relationMode = "foreignKeys"
 }
 
 model Event {
   id          String    @id @default(uuid())
-  title       String
-  description String
-  startTime   DateTime
-  endTime     DateTime
-  location    String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  title       String    @db.VarChar(255)
+  description String    @db.Text
+  startTime   DateTime  @db.Timestamp()
+  endTime     DateTime  @db.Timestamp()
+  location    String    @db.VarChar(255)
+  createdAt   DateTime  @default(now()) @db.Timestamp()
+  updatedAt   DateTime  @updatedAt @db.Timestamp()
   comments    Comment[]
   files       File[]
+
+  @@index([startTime, endTime])
+  @@index([createdAt])
 }
 
 model Comment {
-  id        String   @id @default(uuid())
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  eventId   String
-  event     Event    @relation(fields: [eventId], references: [id])
-  authorName String
+  id         String   @id @default(uuid())
+  content    String   @db.Text
+  createdAt  DateTime @default(now()) @db.Timestamp()
+  updatedAt  DateTime @updatedAt @db.Timestamp()
+  eventId    String
+  authorName String   @db.VarChar(255)
+  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([createdAt])
 }
 
 model File {
   id        String   @id @default(uuid())
-  filename  String
-  path      String
-  createdAt DateTime @default(now())
+  filename  String   @db.VarChar(255)
+  path      String   @db.VarChar(1024)
+  createdAt DateTime @default(now()) @db.Timestamp()
   eventId   String
-  event     Event    @relation(fields: [eventId], references: [id])
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([createdAt])
+}
+
+model ConferenceSettings {
+  id            String   @id @default("default")
+  startDate     DateTime @db.Timestamp()
+  endDate       DateTime @db.Timestamp()
+  updatedAt     DateTime @updatedAt @db.Timestamp()
+}
+
+model EmailList {
+  id          String   @id @default(uuid())
+  email       String   @unique @db.VarChar(255)
+  name        String   @db.VarChar(255)
+  role        String   @db.VarChar(100)
+  createdAt   DateTime @default(now()) @db.Timestamp()
+  updatedAt   DateTime @updatedAt @db.Timestamp()
+
+  @@index([email])
 }
