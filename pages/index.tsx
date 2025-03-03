@@ -32,13 +32,30 @@ console.log('Rendering Index Page'); // Logging for debugging
 export default function Home() {
   const [events, setEvents] = useState<EventType[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Conference dates
+  const CONFERENCE_START = new Date(2025, 6, 17); // July 17, 2025
+  const CONFERENCE_END = new Date(2025, 6, 22, 23, 59, 59); // July 22, 2025 23:59:59
+
+  const getInitialStartDate = () => {
+    const today = new Date();
+    // If today is within conference dates, use today, otherwise use conference start
+    if (today >= CONFERENCE_START && today <= CONFERENCE_END) {
+      return today;
+    }
+    return CONFERENCE_START;
+  };
+
   const [newEvent, setNewEvent] = useState({
     title: '',
     description: '',
-    startTime: new Date(),
-    endTime: new Date(),
+    startTime: getInitialStartDate(),
+    endTime: new Date(getInitialStartDate().getTime() + 60 * 60 * 1000), // 1 hour after start time
     location: '',
   });
+
+  console.log('Initial event dates:', { start: newEvent.startTime, end: newEvent.endTime }); // Logging for debugging
 
   // Fetch events on component mount
   useEffect(() => {
@@ -48,12 +65,16 @@ export default function Home() {
   const fetchEvents = async () => {
     try {
       console.log('Fetching events...'); // Logging for debugging
+      setIsLoading(true);
       const response = await fetch('/api/events');
       const data = await response.json();
       console.log('Fetched events:', data); // Logging for debugging
       setEvents(data);
     } catch (error) {
       console.error('Error fetching events:', error); // Logging for debugging
+      alert('Failed to fetch events. Please refresh the page.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -77,16 +98,16 @@ export default function Home() {
       const createdEvent = await response.json();
       console.log('Event created:', createdEvent); // Logging for debugging
 
-      // Refresh the events list
-      await fetchEvents();
+      // Add the new event to the list
+      setEvents([...events, createdEvent]);
 
       // Reset form and close it
       setShowAddForm(false);
       setNewEvent({
         title: '',
         description: '',
-        startTime: new Date(),
-        endTime: new Date(),
+        startTime: getInitialStartDate(),
+        endTime: new Date(getInitialStartDate().getTime() + 60 * 60 * 1000), // 1 hour after start time
         location: '',
       });
     } catch (error) {
@@ -96,9 +117,44 @@ export default function Home() {
   };
 
   const handleDateChange = (date: Date | null, field: 'startTime' | 'endTime') => {
-    if (date) {
-      setNewEvent({ ...newEvent, [field]: date });
+    if (!date) return;
+
+    console.log('Date change:', { field, date }); // Logging for debugging
+
+    if (field === 'startTime') {
+      // Ensure date is within conference period
+      if (date < CONFERENCE_START) {
+        date = CONFERENCE_START;
+      } else if (date > CONFERENCE_END) {
+        date = CONFERENCE_END;
+      }
+
+      // Update end time to be 1 hour after start time if it's before the new start time
+      const newEndTime = newEvent.endTime < date ? new Date(date.getTime() + 60 * 60 * 1000) : newEvent.endTime;
+      
+      setNewEvent({
+        ...newEvent,
+        startTime: date,
+        endTime: newEndTime > CONFERENCE_END ? CONFERENCE_END : newEndTime,
+      });
+    } else {
+      // For end time, ensure it's after start time and within conference
+      if (date <= newEvent.startTime) {
+        date = new Date(newEvent.startTime.getTime() + 60 * 60 * 1000);
+      }
+      if (date > CONFERENCE_END) {
+        date = CONFERENCE_END;
+      }
+      
+      setNewEvent({
+        ...newEvent,
+        endTime: date,
+      });
     }
+  };
+
+  const handleDeleteEvent = (deletedEventId: string) => {
+    setEvents(events.filter(event => event.id !== deletedEventId));
   };
 
   return (
@@ -126,8 +182,16 @@ export default function Home() {
         </div>
 
         {showAddForm && (
-          <div className="bg-white p-6 rounded-lg shadow-lg mb-8">
-            <h2 className="text-2xl font-bold text-green-800 mb-6">Add New Event</h2>
+          <div className="bg-white p-6 rounded-lg shadow-lg mb-8 animate-fadeIn">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-green-800">Add New Event</h2>
+              <button
+                onClick={() => setShowAddForm(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-gray-700 mb-2">Title</label>
@@ -160,7 +224,10 @@ export default function Home() {
                     showTimeSelect
                     dateFormat="MMMM d, yyyy h:mm aa"
                     className="w-full p-2 border rounded-lg"
+                    minDate={CONFERENCE_START}
+                    maxDate={CONFERENCE_END}
                   />
+                  <p className="text-xs text-gray-500 mt-1">Must be between July 17-22, 2025</p>
                 </div>
 
                 <div>
@@ -171,7 +238,10 @@ export default function Home() {
                     showTimeSelect
                     dateFormat="MMMM d, yyyy h:mm aa"
                     className="w-full p-2 border rounded-lg"
+                    minDate={newEvent.startTime}
+                    maxDate={CONFERENCE_END}
                   />
+                  <p className="text-xs text-gray-500 mt-1">Must be after start time and before July 22, 2025</p>
                 </div>
               </div>
 
@@ -186,14 +256,7 @@ export default function Home() {
                 />
               </div>
 
-              <div className="flex justify-end space-x-4">
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                >
-                  Cancel
-                </button>
+              <div className="flex justify-end">
                 <button
                   type="submit"
                   className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -206,9 +269,20 @@ export default function Home() {
         )}
 
         <div className="space-y-6">
-          {events.map((event) => (
-            <Event key={event.id} {...event} />
-          ))}
+          {isLoading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Loading events...</p>
+            </div>
+          ) : events.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-600">No events found. Add your first event!</p>
+            </div>
+          ) : (
+            events.map((event) => (
+              <Event key={event.id} {...event} onDelete={handleDeleteEvent} />
+            ))
+          )}
         </div>
       </main>
 
