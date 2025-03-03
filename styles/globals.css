@@ -1,4 +1,6 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @theme {
   --font-sans: var(--font-geist-sans);
@@ -70,28 +72,29 @@ body {
   animation: fadeIn 0.3s ease-in-out;
 }
 
-/* Custom form styles */
-.input-focus {
-  @apply focus:ring-2 focus:ring-green-500 focus:border-green-500 focus:outline-none;
-}
+@layer components {
+  .input-focus {
+    @apply focus:ring-2 focus:ring-green-500 focus:border-green-500 focus:outline-none;
+  }
 
-/* Date picker customization */
-.react-datepicker-wrapper {
-  width: 100%;
-}
+  /* Date picker customization */
+  .react-datepicker-wrapper {
+    width: 100%;
+  }
 
-.react-datepicker__input-container input {
-  @apply w-full p-2 border rounded-lg;
-}
+  .react-datepicker__input-container input {
+    @apply w-full p-2 border rounded-lg;
+  }
 
-.react-datepicker__day--selected {
-  @apply bg-green-600;
-}
+  .react-datepicker__day--selected {
+    @apply bg-green-600;
+  }
 
-/* Toast notifications */
-.toast {
-  @apply fixed bottom-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg;
-  animation: slideIn 0.3s ease-out;
+  /* Toast notifications */
+  .toast {
+    @apply fixed bottom-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg;
+    animation: slideIn 0.3s ease-out;
+  }
 }
 
 @keyframes slideIn {
