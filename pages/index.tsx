@@ -4,6 +4,7 @@ import Event from '../components/Event';
 import { PlusIcon } from '@heroicons/react/24/solid';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+import { CalendarDaysIcon, CalendarIcon } from '@heroicons/react/24/outline';
 
 interface EventFile {
   id: string;
@@ -287,8 +288,23 @@ export default function Home() {
       </main>
 
       <footer className="bg-green-800 text-white py-8 mt-12">
-        <div className="container mx-auto px-4 text-center">
-          <p>CRIS Con 2025 - Celebrating Costa Rican Innovation and Science</p>
+        <div className="container mx-auto px-4">
+          <div className="text-center">
+            <p className="mb-4">CRIS Con 2025 - Celebrating Costa Rican Innovation and Science</p>
+            <div className="text-sm text-green-100">
+              <p className="mb-2">Add events to your calendar:</p>
+              <div className="flex justify-center space-x-4">
+                <div className="flex items-center">
+                  <CalendarDaysIcon className="h-4 w-4 mr-1" />
+                  <span>Click the calendar icon next to any event to add to Google Calendar</span>
+                </div>
+                <div className="flex items-center">
+                  <CalendarIcon className="h-4 w-4 mr-1" />
+                  <span>Click the calendar icon next to any event to add to Apple Calendar</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </footer>
     </div>

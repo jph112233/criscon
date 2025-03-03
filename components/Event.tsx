@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { CalendarIcon, MapPinIcon, ChatBubbleLeftIcon, PaperClipIcon, TrashIcon, XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, MapPinIcon, ChatBubbleLeftIcon, PaperClipIcon, TrashIcon, XMarkIcon, ExclamationTriangleIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
+import { generateCalendarLinks } from '../utils/calendar';
 
 interface Comment {
   id: string;
@@ -135,6 +136,27 @@ export default function Event({
     }
   };
 
+  const handleCalendarSync = (type: 'google' | 'apple') => {
+    const links = generateCalendarLinks({
+      title,
+      description,
+      startTime,
+      endTime,
+      location,
+    });
+
+    if (type === 'google') {
+      window.open(links.google, '_blank');
+    } else {
+      const link = document.createElement('a');
+      link.href = links.apple;
+      link.download = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.ics`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
   return (
     <>
       <div className="bg-white rounded-lg shadow-lg p-6 mb-6 hover:shadow-xl transition-shadow duration-300 border-l-4 border-green-500">
@@ -167,6 +189,20 @@ export default function Event({
           </div>
           
           <div className="flex space-x-2">
+            <button
+              onClick={() => handleCalendarSync('google')}
+              className="p-2 text-blue-500 hover:text-blue-700 rounded-full hover:bg-blue-50"
+              title="Add to Google Calendar"
+            >
+              <CalendarDaysIcon className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => handleCalendarSync('apple')}
+              className="p-2 text-blue-500 hover:text-blue-700 rounded-full hover:bg-blue-50"
+              title="Add to Apple Calendar"
+            >
+              <CalendarIcon className="h-5 w-5" />
+            </button>
             {isExpanded && (
               <button
                 onClick={() => setIsExpanded(false)}
