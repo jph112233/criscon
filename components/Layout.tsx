@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { HomeIcon } from '@heroicons/react/24/outline';
 
-interface LayoutProps {
+export interface LayoutProps {
   children: React.ReactNode;
+  onShowDetails?: () => void;
 }
 
-export default function Layout({ children }: LayoutProps) {
+export default function Layout({ children, onShowDetails }: LayoutProps) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-blue-50">
       {/* Navigation Header */}
@@ -19,6 +20,22 @@ export default function Layout({ children }: LayoutProps) {
               >
                 <HomeIcon className="h-6 w-6 mr-2" />
                 <span className="font-semibold">CRIS Con Home</span>
+              </Link>
+            </div>
+            <div className="flex items-center space-x-4 text-sm">
+              {onShowDetails && (
+                <>
+                  <button
+                    onClick={onShowDetails}
+                    className="text-green-600 hover:text-green-800"
+                  >
+                    Event Details
+                  </button>
+                  <span className="text-gray-300">|</span>
+                </>
+              )}
+              <Link href="/events" className="text-green-600 hover:text-green-800">
+                Manage Events
               </Link>
             </div>
           </div>

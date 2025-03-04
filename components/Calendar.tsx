@@ -29,7 +29,8 @@ const Calendar: React.FC<CalendarProps> = ({
 }) => {
   // Calculate days based on conference dates
   const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-  const dates = Array.from({ length: 6 }, (_, i) => {
+  const daysDiff = Math.ceil((conferenceEnd.getTime() - conferenceStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const dates = Array.from({ length: daysDiff }, (_, i) => {
     const date = new Date(conferenceStart);
     date.setDate(date.getDate() + i);
     return date.getDate();
@@ -83,13 +84,13 @@ const Calendar: React.FC<CalendarProps> = ({
       <div className="flex justify-center items-center mb-6">
         <Link href="/">
           <h1 className="text-2xl font-bold text-green-800 hover:text-green-600 transition-colors cursor-pointer">
-            July
+            {format(conferenceStart, 'MMMM yyyy')}
           </h1>
         </Link>
       </div>
 
       {/* Calendar Days */}
-      <div className="grid grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-7 gap-4 mb-6">
         {dates.map((date, index) => {
           const currentDate = new Date(conferenceStart);
           currentDate.setDate(currentDate.getDate() + index);
@@ -138,7 +139,7 @@ const Calendar: React.FC<CalendarProps> = ({
       {/* Events List */}
       <div className="space-y-4">
         <h2 className="text-xl font-bold text-green-800">
-          {format(new Date(2025, 6, selectedDate), 'EEEE, MMMM d')}
+          {format(new Date(conferenceStart.getFullYear(), conferenceStart.getMonth(), selectedDate), 'EEEE, MMMM d')}
         </h2>
         
         {filteredEvents.length > 0 ? (
@@ -161,7 +162,7 @@ const Calendar: React.FC<CalendarProps> = ({
           </div>
         ) : (
           <div className="text-center py-8 text-gray-500">
-            No events scheduled for {format(new Date(2025, 6, selectedDate), 'MMMM d, yyyy')}
+            No events scheduled for {format(new Date(conferenceStart.getFullYear(), conferenceStart.getMonth(), selectedDate), 'MMMM d, yyyy')}
           </div>
         )}
         

@@ -15,12 +15,16 @@ interface EmailListEntry {
 interface ConferenceSettings {
   startDate: Date;
   endDate: Date;
+  address: string;
+  notes: string;
 }
 
 export default function AdminPage() {
   const [settings, setSettings] = useState<ConferenceSettings>({
     startDate: new Date(2025, 6, 17),
     endDate: new Date(2025, 6, 22),
+    address: '',
+    notes: ''
   });
 
   const [emailList, setEmailList] = useState<EmailListEntry[]>([]);
@@ -45,6 +49,8 @@ export default function AdminPage() {
         setSettings({
           startDate: new Date(data.startDate),
           endDate: new Date(data.endDate),
+          address: data.address,
+          notes: data.notes,
         });
       }
     } catch (error) {
@@ -177,6 +183,29 @@ export default function AdminPage() {
                   showTimeSelect
                   dateFormat="MMMM d, yyyy h:mm aa"
                   className="w-full p-2 border rounded-lg"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Address
+                </label>
+                <input
+                  type="text"
+                  value={settings.address}
+                  onChange={(e) => setSettings({ ...settings, address: e.target.value })}
+                  className="w-full p-2 border rounded-lg"
+                  placeholder="Enter conference venue address"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notes
+                </label>
+                <textarea
+                  value={settings.notes}
+                  onChange={(e) => setSettings({ ...settings, notes: e.target.value })}
+                  className="w-full p-2 border rounded-lg h-32"
+                  placeholder="Enter any additional conference information or notes"
                 />
               </div>
             </div>

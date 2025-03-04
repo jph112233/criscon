@@ -61,6 +61,8 @@ model ConferenceSettings {
   id            String   @id @default("default")
   startDate     DateTime @db.Timestamp()
   endDate       DateTime @db.Timestamp()
+  address       String   @db.VarChar(1024) @default("")
+  notes         String   @db.Text @default("")
   updatedAt     DateTime @updatedAt @db.Timestamp()
 }
 

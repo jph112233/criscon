@@ -24,18 +24,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(200).json(settings);
     } else if (req.method === 'PUT') {
-      const { startDate, endDate } = req.body;
+      const { startDate, endDate, address, notes } = req.body;
 
       const updatedSettings = await prisma.conferenceSettings.upsert({
         where: { id: 'default' },
         update: {
           startDate: new Date(startDate),
           endDate: new Date(endDate),
+          address,
+          notes
         },
         create: {
           id: 'default',
           startDate: new Date(startDate),
           endDate: new Date(endDate),
+          address,
+          notes
         },
       });
 

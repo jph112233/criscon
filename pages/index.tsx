@@ -7,7 +7,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { CalendarDaysIcon, CalendarIcon } from '@heroicons/react/24/outline';
 import Calendar, { CalendarEvent } from '../components/Calendar';
 import { format } from 'date-fns';
-import Layout from '../components/Layout';
+import Layout, { LayoutProps } from '../components/Layout';
 import Link from 'next/link';
 
 interface ConferenceSettings {
