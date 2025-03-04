@@ -8,10 +8,13 @@ import { CalendarDaysIcon, CalendarIcon } from '@heroicons/react/24/outline';
 import Calendar, { CalendarEvent } from '../components/Calendar';
 import { format } from 'date-fns';
 import Layout from '../components/Layout';
+import Link from 'next/link';
 
 interface ConferenceSettings {
   startDate: Date;
   endDate: Date;
+  address: string;
+  notes: string;
 }
 
 interface EventFile {
@@ -48,6 +51,7 @@ export default function Home() {
   const [retryCount, setRetryCount] = useState(0);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [conferenceSettings, setConferenceSettings] = useState<ConferenceSettings | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   const getInitialStartDate = () => {
     if (!conferenceSettings) return new Date();
@@ -77,7 +81,9 @@ export default function Home() {
       console.log('Received conference settings:', data);
       setConferenceSettings({
         startDate: new Date(data.startDate),
-        endDate: new Date(data.endDate)
+        endDate: new Date(data.endDate),
+        address: data.address,
+        notes: data.notes
       });
       // Update newEvent times based on conference settings
       setNewEvent(prev => ({
@@ -184,7 +190,7 @@ export default function Home() {
   };
 
   const handleDateChange = (date: Date | null, field: 'startTime' | 'endTime') => {
-    if (!date) return;
+    if (!date || !conferenceSettings) return;
 
     console.log('Date change:', { field, date }); // Logging for debugging
 
@@ -245,7 +251,7 @@ export default function Home() {
   };
 
   return (
-    <Layout>
+    <Layout onShowDetails={() => setShowDetailsModal(true)}>
       <Head>
         <title>CRIS Con 2025</title>
         <meta name="description" content="CRIS Con 2025 - Conference Schedule" />
@@ -253,48 +259,96 @@ export default function Home() {
       </Head>
 
       <div className="container mx-auto px-4">
-        <h1 className="text-3xl font-bold text-center text-green-800 mb-8">
-          CRIS Con 2025 Schedule
-        </h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-green-800">
+            CRIS Con 2025 Schedule
+          </h1>
+        </div>
+
         {conferenceSettings ? (
-          (() => {
-            // This block only executes when conferenceSettings is not null
-            const settings = conferenceSettings;
-            return (
+          <>
+            {error ? (
+              <div className="text-center py-4">
+                <p className="text-red-600 mb-2">{error}</p>
+                <button 
+                  onClick={() => {
+                    setError(null);
+                    fetchConferenceSettings();
+                    fetchEvents();
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : isLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading...</p>
+              </div>
+            ) : (
               <>
-                <p className="text-center text-gray-600 mb-8">
-                  {format(settings.startDate, 'MMMM d')} - {format(settings.endDate, 'MMMM d, yyyy')}
-                </p>
-                {error ? (
-                  <div className="text-center py-4">
-                    <p className="text-red-600 mb-2">{error}</p>
-                    <button 
-                      onClick={() => {
-                        setError(null);
-                        fetchConferenceSettings();
-                        fetchEvents();
-                      }}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                    >
-                      Retry
-                    </button>
+                <Calendar 
+                  events={events} 
+                  conferenceStart={conferenceSettings.startDate}
+                  conferenceEnd={conferenceSettings.endDate}
+                />
+
+                {/* Event Details Modal */}
+                {showDetailsModal && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4">
+                      <div className="flex justify-between items-start mb-4">
+                        <h3 className="text-xl font-bold text-green-800">Conference Details</h3>
+                        <button 
+                          onClick={() => setShowDetailsModal(false)}
+                          className="text-gray-500 hover:text-gray-700"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <div className="text-sm font-medium text-gray-500">Dates</div>
+                          <div className="text-green-700">
+                            {format(conferenceSettings.startDate, 'MMMM d')} - {format(conferenceSettings.endDate, 'MMMM d, yyyy')}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-500">Location</div>
+                          <div className="text-gray-700">
+                            <a 
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(conferenceSettings.address)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-green-600 hover:text-green-800"
+                            >
+                              {conferenceSettings.address}
+                            </a>
+                          </div>
+                        </div>
+                        {conferenceSettings.notes && (
+                          <div>
+                            <div className="text-sm font-medium text-gray-500">Additional Information</div>
+                            <div className="text-gray-700 whitespace-pre-wrap">{conferenceSettings.notes}</div>
+                          </div>
+                        )}
+                        <div className="pt-4 flex justify-end">
+                          <button
+                            onClick={() => setShowDetailsModal(false)}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                          >
+                            Close
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                ) : isLoading ? (
-                  <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Loading...</p>
-                  </div>
-                ) : (
-                  <Calendar 
-                    events={events} 
-                    conferenceStart={settings.startDate}
-                    conferenceEnd={settings.endDate}
-                  />
                 )}
               </>
-            );
-          })()
-        ) : !error && (
+            )}
+          </>
+        ) : (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading conference settings...</p>
